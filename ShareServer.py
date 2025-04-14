@@ -4,22 +4,24 @@ import json
 import uvicorn
 
 app = FastAPI()
+
 bubbles: Dict[str, List[WebSocket]] = {}
 
 @app.websocket("/ws/{roomId}")
 async def websocket_endpoint(websocket: WebSocket, roomId: str):
     await websocket.accept()
-    bubbles.setdefault(roomId, []).append(websocket)
+
+    if roomId not in bubbles:
+        bubbles[roomId] = []
+
+    bubbles[roomId].append(websocket)
 
     try:
         while True:
             data = await websocket.receive_text()
-            message = json.loads(data)
-
             for user in bubbles[roomId]:
                 if user != websocket:
-                    await user.send_text(json.dumps(message))
-
+                    await user.send_text(data)
     except WebSocketDisconnect:
         bubbles[roomId].remove(websocket)
         if not bubbles[roomId]:
